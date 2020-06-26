@@ -4,6 +4,30 @@ import numpy as np
 import pandas as pd
 from concurrent.futures import ProcessPoolExecutor
 
+    
+class EEMD():
+    def __init__(self, criterion="num_sifts", num_sifts=100, sd=0.2, ensemble_size=100, snr=34):
+        self.criterion = criterion
+        self.num_sifts = num_sifts
+        self.sd = sd
+        self.ensemble_size = ensemble_size
+        self.snr = snr
+
+    def __call__(self, s, concurrent=True):
+        with ProcessPoolExecutor() as executor:
+           eemd_set = [executor.submit(ensemble_imf, s, self.criterion, self.num_sifts, self.sd, self.snr)
+                   for _ in range(self.ensemble_size)]
+        if not concurrent:
+            eemd_set = [ensemble_imf(s, self.criterion, self.num_sifts, self.sd, self.snr)
+                    for _ in range(self.ensemble_size)]
+        return eemd_set
+
+def ensemble_imf(s, criterion, num_sifts, sd, snr):
+    noise = gen_noise(s, snr)
+    emd = EMD(criterion=criterion, num_sifts=num_sifts, sd=sd)
+    imf_set = emd(s + noise)
+    return imf_set
+
 def signal_power(s):
     return np.mean(np.square(s))
 
@@ -14,33 +38,9 @@ def gen_noise(s, target_snr=34):
     k = (s_power / n_power) * 10 ** (-target_snr / 10)
     scale_noise = np.sqrt(k) * noise
     return scale_noise
-    
-class EEMD():
-    def __init__(self, criterion="num_sifts", num_sifts=100, sd=0.2, ensemble_size=100, snr=34):
-        self.criterion = criterion
-        self.num_sifts = num_sifts
-        self.sd = sd
-        self.ensemble_size = ensemble_size
-        self.snr = snr
-
-    def __call__(self, s):
-        imf_set = []
-        with ProcessPoolExecutor() as executor:
-           eemd1 = executor.submit(ensemble_imf, s, self.criterion, self.num_sifts, self.sd, self.snr)
-           imf_set.append(eemd1.result())
-        return imf_set
-
-def ensemble_imf(s, criterion, num_sifts, sd, snr):
-    noise = gen_noise(s, snr)
-    emd = EMD(criterion=criterion, num_sifts=num_sifts, sd=sd)
-    imf_set = emd(s + noise)
-    return imf_set
 
 if __name__ == "__main__":
     df = pd.read_csv('daily-min-temperatures.csv')
     s = df.values[:, 1].astype('float')
-    eemd = EEMD()
-    imf_set = eemd(s)
-    
-    plt.plot(imf_set[0][0])
-    plt.show()
+    eemd = EEMD(ensemble_size=50)
+    eemd_set = eemd(s, False)
