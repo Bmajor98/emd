@@ -62,9 +62,9 @@ def gen_noise(s, target_snr):
 
 
 if __name__ == "__main__":
-    df = pd.read_csv('daily-min-temperatures.csv')
+    df = pd.read_csv('data/daily-min-temperatures.csv')
     s = df.values[:, 1].astype('float')
-    eemd = EEMD(snr=10)
+    eemd = EEMD(criterion="num_sifts", ensemble_size=10, snr=20)
     imf_set = eemd(s)
 
     fig, axs = plt.subplots(len(imf_set) + 1, 1)
@@ -73,6 +73,6 @@ if __name__ == "__main__":
         axs[i + 1].plot(imf_set[i])
     plt.show()
 
-    plt.plot(np.sum(imf_set, axis=0)[:250])
-    plt.plot(s[:250])
-    plt.show()
+    # plt.plot(np.sum(imf_set, axis=0)[:250])
+    # plt.plot(s[:250])
+    # plt.show()
